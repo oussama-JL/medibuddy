@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+vendor/
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# build output
+build/
+dist/
+
+# logs and runtime
+*.log
+backend/storage/logs/*
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*.php
+.phpunit.cache/
+.phpunit.result.cache
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# real exported data lives outside the repo (see medibuddy-private); never commit it
+database-seed/

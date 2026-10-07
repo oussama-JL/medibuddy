@@ -1,0 +1,32 @@
+# Draft Render blueprint for the API (Docker, because Render has no native PHP runtime).
+services:
+  - type: web
+    name: medibuddy-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /up
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY            # php artisan key:generate --show
+        sync: false
+      - key: MONGO_DSN          # Atlas connection string (mongodb+srv://...)
+        sync: false
+      - key: MONGO_DB
+        value: MEDIBuddy
+      - key: FRONTEND_URL       # e.g. https://your-app.vercel.app
+        sync: false
+      - key: TRUSTED_PROXIES
+        value: "*"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: CACHE_STORE        # login throttling counters; no database migration needed
+        value: file
+      - key: SESSION_DRIVER
+        value: array
+      - key: QUEUE_CONNECTION
+        value: sync

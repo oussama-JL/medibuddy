@@ -1,0 +1,35 @@
+# Production image for the Laravel API (Vercel container function; same as Dockerfile).
+FROM php:8.3-apache
+
+# PHP extensions: mongodb (same minor as composer.lock requires), zip for composer
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-php-extensions \
+ && install-php-extensions mongodb-1.21.10 zip opcache \
+ && apt-get update && apt-get install -y --no-install-recommends git unzip \
+ && rm -rf /var/lib/apt/lists/* \
+ && a2enmod rewrite headers
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+ && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
+ && sed -ri -e 's/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+WORKDIR /var/www/html
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --optimize-autoloader
+COPY . .
+RUN composer dump-autoload --no-dev --optimize \
+ && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+ && php artisan package:discover --ansi  && chown -R www-data:www-data storage bootstrap/cache
+
+# The platform gives the port in $PORT. The image filesystem may be read-only at runtime,
+# so Laravel's writable storage lives in /tmp (LARAVEL_STORAGE_PATH is read by Laravel itself).
+ENV LARAVEL_STORAGE_PATH=/tmp/storage  \
+    APP_PACKAGES_CACHE=/tmp/bootstrap/packages.php  \
+    APP_SERVICES_CACHE=/tmp/bootstrap/services.php  \
+    APP_CONFIG_CACHE=/tmp/bootstrap/config.php  \
+    APP_ROUTES_CACHE=/tmp/bootstrap/routes-v7.php  \
+    APP_EVENTS_CACHE=/tmp/bootstrap/events.php
+CMD ["sh", "-c", "mkdir -p /tmp/bootstrap /tmp/storage/framework/cache/data /tmp/storage/framework/sessions /tmp/storage/framework/views /tmp/storage/logs && chown -R www-data:www-data /tmp/storage /tmp/bootstrap && sed -ri \"s/Listen 80/Listen ${PORT:-80}/\" /etc/apache2/ports.conf && sed -ri \"s/:80>/:${PORT:-80}>/\" /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
